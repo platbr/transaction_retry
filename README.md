@@ -45,7 +45,7 @@ __after__ connecting to the database.
 ## Configuration
 
 You can optionally configure transaction_retry gem in your config/initializers/transaction_retry.rb (or anywhere else):
-    TransactionRetry.auto_rety = true | false
+    TransactionRetry.auto_retry = true | false
     TransactionRetry.retry_on = [PG::TRSerializationFailure', PG::TRDeadlockDetected]
     TransactionRetry.max_retries = 3
     TransactionRetry.wait_times = [0, 1, 2, 4, 8, 16, 32]   # seconds to sleep after retry n

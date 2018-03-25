@@ -10,7 +10,7 @@ module TransactionRetry
             alias_method :transaction_without_retry, :transaction
           end
         end
-        base.extend(OverrideMethods) if TransactionRetry.auto_rety
+        base.extend(OverrideMethods) if TransactionRetry.auto_retry
       end
 
       module OverrideMethods
