@@ -17,7 +17,6 @@ module TransactionRetry
       config.after_initialize do
         TransactionRetry.apply_activerecord_patch
       end
-      raise Exception, "TransactionRetry.retry_on should be defined!"
     end
   end
 
