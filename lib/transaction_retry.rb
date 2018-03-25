@@ -1,16 +1,14 @@
 require "active_record"
-require "transaction_isolation"
 
 require_relative "transaction_retry/version"
 
 module TransactionRetry
-
   # Must be called after ActiveRecord established a connection.
   # Only then we know which connection adapter is actually loaded and can be enhanced.
   # Please note ActiveRecord does not load unused adapters.
   def self.apply_activerecord_patch
-    TransactionIsolation.apply_activerecord_patch
     require_relative 'transaction_retry/active_record/base'
+    # ActiveRecord::Base.send(:include, TransactionRetry::ActiveRecord::Base)
   end
 
   if defined?( ::Rails )
@@ -19,7 +17,24 @@ module TransactionRetry
       config.after_initialize do
         TransactionRetry.apply_activerecord_patch
       end
+      raise Exception, "TransactionRetry.retry_on should be defined!"
     end
+  end
+
+  def self.auto_rety=( val )
+    @@auto_rety = val
+  end
+
+  def self.auto_rety
+    @@auto_rety ||= false
+  end
+
+  def self.retry_on=( value )
+    @@retry_on ||= [PG::TRSerializationFailure, PG::TRDeadlockDetected]
+  end
+
+  def self.retry_on
+    @@retry_on ||= nil
   end
 
   def self.max_retries

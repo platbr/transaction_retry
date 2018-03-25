@@ -6,7 +6,7 @@ require 'db/all'
 case ENV['db']
   when 'mysql2'
     TransactionRetry::Test::Db.connect_to_mysql2
-  when 'postgresql'
+  when 'postgresql'    
     TransactionRetry::Test::Db.connect_to_postgresql
   when 'sqlite3'
     TransactionRetry::Test::Db.connect_to_sqlite3

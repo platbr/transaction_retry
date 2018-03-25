@@ -17,7 +17,7 @@ module TransactionRetry
         ::ActiveRecord::Base.establish_connection(
           :adapter => "postgresql",
           :database => "transaction_retry_test",
-          :user => 'qertoip',
+          :user => 'wagner',
           :password => 'test123'
         )
       end
