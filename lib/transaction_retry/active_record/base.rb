@@ -42,8 +42,7 @@ module TransactionRetry
             postfix = { 1 => 'st', 2 => 'nd', 3 => 'rd' }[retry_count] || 'th'
 
             type_s = error.class.name
-
-            logger.warn "#{type_s} detected. Retrying for the #{retry_count}-#{postfix} time..." if logger
+            Rails.logger.warn "#{type_s} detected. Retrying for the #{retry_count}-#{postfix} time..." if defined? Rails
             tr_exponential_pause(retry_count)
             retry
           end
