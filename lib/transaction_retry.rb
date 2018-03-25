@@ -20,12 +20,12 @@ module TransactionRetry
     end
   end
 
-  def self.auto_rety=( val )
-    @@auto_rety = val
+  def self.auto_retry=( val )
+    @@auto_retry = val
   end
 
-  def self.auto_rety
-    @@auto_rety ||= false
+  def self.auto_retry
+    @@auto_retry ||= false
   end
 
   def self.retry_on=( value )
