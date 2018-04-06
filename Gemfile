@@ -19,4 +19,6 @@ group :development do
   # enhance irb
   gem 'awesome_print', :require => false
   gem 'pry', :require => false
+  gem 'ruby-debug-ide', '0.6.0'
+  gem 'debase', '0.2.2'
 end

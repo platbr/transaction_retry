@@ -29,7 +29,7 @@ module TransactionRetry
   end
 
   def self.retry_on=( value )
-    @@retry_on ||= [PG::TRSerializationFailure, PG::TRDeadlockDetected]
+    @@retry_on ||= ['PG::TRSerializationFailure', 'PG::TRDeadlockDetected']
   end
 
   def self.retry_on

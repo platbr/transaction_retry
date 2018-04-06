@@ -3,9 +3,6 @@
 require 'test_helper'
 
 class TransactionWithRetryTest < MiniTest::Test
-  class CustomError < StandardError
-  end
-
   def setup
     @original_retry_on = TransactionRetry.retry_on
     @original_max_retries = TransactionRetry.max_retries
@@ -40,12 +37,16 @@ class TransactionWithRetryTest < MiniTest::Test
     first_run = true
 
     ActiveRecord::Base.transaction_with_retry do
+      QueuedJob.create!( :job => 'is cool!' )
       if first_run
         first_run = false
-        message = "Deadlock found when trying to get lock"
-        raise PG::TRSerializationFailure.new( ActiveRecord::StatementInvalid.new( message ) )
+        begin
+          message = "Simulating a TRSerializationFailure"
+          raise PG::TRSerializationFailure.new( message )
+        rescue => err
+          raise ::ActiveRecord::StatementInvalid.new(err.message)
+        end
       end
-      QueuedJob.create!( :job => 'is cool!' )
     end
     assert_equal( 1, QueuedJob.count )
 
@@ -53,15 +54,14 @@ class TransactionWithRetryTest < MiniTest::Test
   end
 
   def test_does_not_retry_on_unknown_error
-    first_run = true
-
-    assert_raises( CustomError ) do
+    assert_raises(::ActiveRecord::StatementInvalid) do
       ActiveRecord::Base.transaction_with_retry do
-        if first_run
-          first_run = false
-          raise CustomError, "random error"
-        end
         QueuedJob.create!( :job => 'is cool!' )
+        begin
+          raise StandardError.new("random error")
+        rescue => err
+          raise ::ActiveRecord::StatementInvalid.new(err.message)
+        end
       end
     end
     assert_equal( 0, QueuedJob.count )
@@ -70,45 +70,72 @@ class TransactionWithRetryTest < MiniTest::Test
   def test_retries_on_custom_error
     first_run = true
 
-    ActiveRecord::Base.transaction_with_retry(retry_on: CustomError) do
+    ActiveRecord::Base.transaction_with_retry(retry_on: StandardError) do
+      QueuedJob.create!( :job => 'is cool!' )
       if first_run
         first_run = false
-        raise CustomError, "random error"
+        begin
+          raise StandardError.new("CustomError error")
+        rescue => err
+          raise ::ActiveRecord::StatementInvalid.new(err.message)
+        end
       end
-      QueuedJob.create!( :job => 'is cool!' )
     end
+
     assert_equal( 1, QueuedJob.count )
 
-    QueuedJob.first.destroy
+    ActiveRecord::Base.transaction_with_retry(retry_on: 'StandardError') do
+      QueuedJob.create!( :job => 'is cool!' )
+      if first_run
+        first_run = false
+        begin
+          raise StandardError.new("CustomError error")
+        rescue => err
+          raise ::ActiveRecord::StatementInvalid.new(err.message)
+        end
+      end
+    end
+    assert_equal( 2, QueuedJob.count )
+    QueuedJob.all.destroy_all
   end
 
   def test_does_not_retry_transaction_more_than_max_retries_times
     TransactionRetry.max_retries = 1
     run = 0
 
-    assert_raises( PG::TRSerializationFailure ) do
+    assert_raises( ::ActiveRecord::StatementInvalid ) do
       ActiveRecord::Base.transaction_with_retry do
         run += 1
-        message = "Deadlock found when trying to get lock"
-        raise PG::TRSerializationFailure.new( ActiveRecord::StatementInvalid.new( message ) )
+        begin
+          message = "Simulating a TRSerializationFailure"
+          raise PG::TRSerializationFailure.new( message )
+        rescue => err
+          raise ::ActiveRecord::StatementInvalid.new(err.message)
+        end
       end
     end
-    
-    assert_equal( 2, run )  # normal run + one retry
 
+    assert_equal( 2, run )  # normal run + one retry
+  end
+
+  def test_does_allow_override_default_max_retries
     TransactionRetry.max_retries = 3
 
     run = 0
 
-    assert_raises( PG::TRSerializationFailure ) do
-      ActiveRecord::Base.transaction_with_retry(max_retries: 1) do
+    assert_raises(::ActiveRecord::StatementInvalid) do
+      ActiveRecord::Base.transaction_with_retry(max_retries: 2) do
         run += 1
-        message = "Deadlock found when trying to get lock"
-        raise PG::TRSerializationFailure.new( ActiveRecord::StatementInvalid.new( message ) )
+        begin
+          message = "Simulating a TRSerializationFailure"
+          raise PG::TRSerializationFailure.new(message)
+        rescue => err
+          raise ::ActiveRecord::StatementInvalid.new(err.message)
+        end
       end
     end
-    
-    assert_equal( 2, run )  # normal run + one retry
+
+    assert_equal( 3, run )  # normal run + 2 retry
   end
 
   def test_does_not_retry_nested_transaction
@@ -116,12 +143,16 @@ class TransactionWithRetryTest < MiniTest::Test
 
     ActiveRecord::Base.transaction_with_retry do
 
-      assert_raises( PG::TRSerializationFailure ) do
+      assert_raises( ::ActiveRecord::StatementInvalid ) do
         ActiveRecord::Base.transaction( :requires_new => true ) do
           if first_try
             first_try = false
-            message = "Deadlock found when trying to get lock"
-            raise PG::TRSerializationFailure.new( ActiveRecord::StatementInvalid.new( message ))
+            begin
+              message = "Simulating a TRSerializationFailure"
+              raise PG::TRSerializationFailure.new( message )
+            rescue => err
+              raise ::ActiveRecord::StatementInvalid.new(err.message)
+            end
           end
           QueuedJob.create!( :job => 'is cool!' )
         end

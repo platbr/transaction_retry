@@ -29,14 +29,30 @@ module TransactionRetry
                    {}
           end
 
-          retry_on = opts.delete(:retry_on) || TransactionRetry.retry_on
+          retry_on = [opts.delete(:retry_on)] if opts[:retry_on]
+          retry_on ||= TransactionRetry.retry_on
           max_retries = opts.delete(:max_retries) || TransactionRetry.max_retries
 
           begin
             transaction_without_retry(*objects, &block)
-          rescue *retry_on => error
+          rescue ::ActiveRecord::StatementInvalid => error
             raise if retry_count >= max_retries
             raise if tr_in_nested_transaction?
+            raise if retry_on.blank?
+
+            found = false
+
+            retry_on.each do |retry_error|
+              if retry_error.is_a? String
+                found = (error.try(:cause) && error.cause.class.name == retry_error) || error.class.name == retry_error
+              end
+              if retry_error.is_a? Class
+                found = (error.try(:cause) && error.cause.class == retry_error) || error.class == retry_error
+              end
+              break if found
+            end
+
+            raise unless found
 
             retry_count += 1
             postfix = { 1 => 'st', 2 => 'nd', 3 => 'rd' }[retry_count] || 'th'
